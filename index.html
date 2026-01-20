@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Kiss Counter Pro</title>
+    <style>
+        :root {
+            --hot-pink: #ff2d55;
+            --ios-gray: #8e8e93;
+            --bg-gradient: radial-gradient(circle at center, #fff0f3 0%, #f2f2f7 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            /* iOS uzun basma menüsünü kapatır */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: var(--bg-gradient);
+            font-family: -apple-system, system-ui, sans-serif;
+            overflow: hidden;
+            user-select: none;
+            touch-action: none;
+            /* Tüm tarayıcı seviyesi jestleri kapatır */
+        }
+
+        /* Performans İçin Katmanlı Arka Plan */
+        .aura {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: var(--hot-pink);
+            filter: blur(100px);
+            opacity: 0.1;
+            border-radius: 50%;
+            z-index: 1;
+            pointer-events: none;
+            will-change: transform;
+        }
+
+        #counter-container {
+            text-align: center;
+            z-index: 10;
+            will-change: transform;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #count {
+            font-size: clamp(80px, 20vw, 120px);
+            /* Responsive font */
+            font-weight: 900;
+            color: #1c1c1e;
+            line-height: 1;
+            display: block;
+        }
+
+        .label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--ios-gray);
+            letter-spacing: 5px;
+            text-transform: uppercase;
+        }
+
+        #kiss-btn {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            margin-top: 40px;
+            border-radius: 50%;
+            border: none;
+            background: #ffffff;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            font-size: 80px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: transform 0.05s linear;
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+        }
+
+        #kiss-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* Mesaj Alanı */
+        #message-box {
+            position: absolute;
+            top: 15%;
+            font-size: 22px;
+            font-weight: 700;
+            color: #d81b60;
+            font-style: italic;
+            height: 30px;
+            pointer-events: none;
+            z-index: 30;
+        }
+
+        /* GPU Hızlandırmalı Animasyon */
+        .kiss-particle {
+            position: absolute;
+            pointer-events: none;
+            z-index: 15;
+            font-size: 40px;
+            will-change: transform, opacity;
+            animation: kissAnim 1s ease-out forwards;
+        }
+
+        @keyframes kissAnim {
+            0% {
+                transform: translate3d(-50%, -50%, 0) scale(0.5);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate3d(calc(-50% + var(--tx)), var(--ty), 0) scale(var(--s)) rotate(var(--r));
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="aura"></div>
+    <div id="message-box"></div>
+
+    <div id="counter-container">
+        <span id="count">0</span>
+        <div class="label">Total Kisses</div>
+    </div>
+
+    <button id="kiss-btn" aria-label="Kiss">💋</button>
+
+    <script>
+        const State = {
+            count: parseInt(localStorage.getItem('kiss_count')) || 0,
+            combo: 0,
+            lastClick: 0,
+            messages: [
+                "Çok tatlısın...", "Tadın çok güzel...", "Hoşuma gidiyorsun...",
+                "Seni istiyorum...", "İnanılmazsın...", "Daha fazla öp..."
+            ]
+        };
+
+        const elements = {
+            btn: document.getElementById('kiss-btn'),
+            count: document.getElementById('count'),
+            msg: document.getElementById('message-box'),
+            container: document.getElementById('counter-container')
+        };
+
+        // Başlangıç değerini yükle
+        elements.count.innerText = State.count;
+
+        const handleInteraction = (e) => {
+            e.preventDefault();
+            const now = Date.now();
+
+            // Combo & State Update
+            State.combo = (now - State.lastClick < 400) ? State.combo + 1 : 1;
+            State.lastClick = now;
+            State.count++;
+
+            // UI Update
+            elements.count.innerText = State.count;
+            localStorage.setItem('kiss_count', State.count);
+
+            // Haptic Feedback (Titreşim)
+            if (navigator.vibrate) navigator.vibrate(10);
+
+            // Scale Effect
+            const scale = Math.min(1 + (State.combo * 0.03), 1.5);
+            elements.container.style.transform = `scale(${scale})`;
+
+            // Message Logic
+            if (State.count % 7 === 0) {
+                showPrompt();
+            }
+
+            // Particle Logic
+            const rect = elements.btn.getBoundingClientRect();
+            const x = e.clientX || (e.touches ? e.touches[0].clientX : rect.left + rect.width / 2);
+            const y = e.clientY || (e.touches ? e.touches[0].clientY : rect.top + rect.height / 2);
+            spawnKiss(x, y);
+        };
+
+        const spawnKiss = (x, y) => {
+            const el = document.createElement('div');
+            el.className = 'kiss-particle';
+            el.innerText = '💋';
+
+            const tx = (Math.random() - 0.5) * 200 + 'px';
+            const ty = - (200 + Math.random() * 200) + 'px';
+            const rot = (Math.random() - 0.5) * 100 + 'deg';
+            const size = 1 + (Math.min(State.combo, 10) * 0.1);
+
+            el.style.setProperty('--tx', tx);
+            el.style.setProperty('--ty', ty);
+            el.style.setProperty('--r', rot);
+            el.style.setProperty('--s', size);
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+
+            document.body.appendChild(el);
+            el.onanimationend = () => el.remove();
+        };
+
+        const showPrompt = () => {
+            const text = State.messages[Math.floor(Math.random() * State.messages.length)];
+            elements.msg.innerText = text;
+            elements.msg.style.opacity = 1;
+            setTimeout(() => { elements.msg.style.opacity = 0; }, 1000);
+        };
+
+        // Event Listeners - Hem Touch hem Mouse için optimize
+        elements.btn.addEventListener('pointerdown', handleInteraction);
+
+        // Prevent Zoom on Double Tap
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+
+</html>
